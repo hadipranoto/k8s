@@ -1,0 +1,88 @@
+Source: https://antonputra.com/kubernetes/kubernetes-kustomize-tutorial/#kustomize-image-name-or-tag
+
+
+#kubernetes helm == using parameterized value
+    metadata:
+      name: {{- include "nginx.labels" . | nindent 4 }}
+
+[issue] helm cant profiling dev/staging/prod
+
+
+
+kubernetes comes with JSON/YAML == individual keys can be merged with spesific values
+
+#kustomize
+ bases: a directory with a kustomization.yaml file contains kubernetes resources (deployments, configmaps, services)
+ overlays: contain env spesific changes
+
+
+#1-example
+    1. replacing namespace 'default' into 'staging'
+        kubectl create namespace staging
+        kubectl apply -k environments/staging
+        kubectl get pods -n staging
+
+    2. - override replicas=20 in production by filtering bases by metadata 'nginx-deployment'
+       - override namespace 'production' and adding namePrefix 'production-'
+       - patchesStrategicMerge: chose to merge or replace any kind of deployments/roles/stateful sets/configmaps/etc
+
+       kubectl apply -k environments/production
+       kubectl get pods -n production
+       kubectl delete -k environments/production
+
+
+#2-example
+    1.  using configMapGenerator in base/kustomization.yaml to call base/configMap.evn
+        - with following name:config and literals[env=staging] if we call config.env will got 'staging'
+
+       - in blink we use envs
+            resources:
+              - deployment.yaml
+              - service.yaml
+            configMapGenerator:
+              - name: api-event-config-map
+                envs:
+                  - configMap.env
+
+
+
+    kubectl apply -k environments/staging
+    kubectl get pods
+    kubectl get cm
+    kubectl get cm config-asd123s -o yaml
+        //list literals can be found under
+            apiVersion: v1
+            data:
+                env:staging //list literals are here
+            kind: configMap
+
+    kubectl exec pod-name-ase1214w12 -- cat /etc/config/credentials    //use this script to read config inside a pod container
+
+
+$3-example
+    1. using secretGenerator:
+            resources:
+            - ../base
+            secretGenerator:
+            - name: username
+              literals:
+              - username=admin
+
+    kubectl exec pod-name-ase1214w12 -- env //use this script to read secrets inside env
+
+    2. if secrets using file be carefull that new line will be appended to active env variables
+    // in blink we use secretKeyRef: and kubectl get secret to fetch it from data.env
+
+
+#4-example
+
+    1. search image with the name 'nginx' in bases directory and update image based on kustomize overlay layer
+            resources:
+            - ../base
+            images:
+            - name: nginx
+              # newName: my-nginx
+              newTag: 1.21.6
+
+
+    kubectl describe pods //to see image version updated
